@@ -20,8 +20,7 @@ import java.util.Collection;
 @Mixin(net.minecraft.client.gui.Gui.class)
 public class FastXPHudMixin {
 
-    // ИСПРАВЛЕНО: Внедряемся в метод renderEffects вместо render, убираем remap = false
-    @Inject(method = "renderEffects", at = @At("HEAD"))
+    @Inject(method = "m_280524_", at = @At("HEAD"), remap = false)
     private void renderUltimatePvPHud(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
@@ -65,11 +64,11 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // ОТРЕСОВКА БРОНИ И ЕЕ ПРОЧНОСТИ (Слева снизу)
+        // ИСПРАВЛЕНО: ОТРЕСОВКА БРОНИ И ЕЕ ПРОЧНОСТИ (Теперь справа от инвентаря!)
         // =========================================================================
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         int armorY = height - 55; 
-        int armorX = width / 2 - 125;
+        int armorX = width / 2 + 95; // Сместили вправо от хотбара
 
         for (EquipmentSlot slot : slots) {
             ItemStack stack = mc.player.getItemBySlot(slot);
@@ -83,18 +82,19 @@ public class FastXPHudMixin {
                     if (ratio < 0.25f) color = 0xFFFF0000; 
                     else if (ratio < 0.5f) color = 0xFFFFAA00;
 
+                    // Полоска прочности и текст теперь рисуются правее иконки брони, чтобы не налезать на инвентарь
                     guiGraphics.fill(armorX + 18, armorY + 6, armorX + 58, armorY + 11, 0x80000000);
                     guiGraphics.fill(armorX + 19, armorY + 7, armorX + 19 + (int)(38 * ratio), armorY + 10, color);
 
                     String text = currentDamage + "/" + maxDamage;
                     guiGraphics.drawString(mc.font, text, armorX + 62, armorY + 4, 0xFFFFFFFF, true);
                 }
-                armorY -= 18; 
+                armorY -= 18; // Следующий элемент брони пойдёт выше
             }
         }
 
         // =========================================================================
-        // СЧЕТЧИК ТОТЕМОВ И ЯБЛОК В ЗАКРУГЛЕННЫХ ПЛАШКАХ (Справа снизу)
+        // СЧЕТЧИК ТОТЕМОВ И ЯБЛОК В ЗАКРУГЛЕННЫХ ПЛАШКАХ (Сдвинут ещё правее брони)
         // =========================================================================
         int totemCount = 0;
         int gappleCount = 0;
@@ -104,7 +104,7 @@ public class FastXPHudMixin {
             if (item.is(Items.GOLDEN_APPLE) || item.is(Items.ENCHANTED_GOLDEN_APPLE)) gappleCount += item.getCount();
         }
 
-        int pvpItemsX = width / 2 + 105;
+        int pvpItemsX = width / 2 + 215; // Подвинули дальше вправо, чтобы не пересекалось с броней
         int pvpItemsY = height - 55;
 
         if (totemCount > 0) {
