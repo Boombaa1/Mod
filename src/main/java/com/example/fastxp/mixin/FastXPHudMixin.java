@@ -6,6 +6,8 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Item;
+import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,7 +19,7 @@ import java.util.Collection;
 public class FastXPHudMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void renderAdvancedPvPHud(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
+    private void renderUltimatePvPHud(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
 
@@ -25,7 +27,27 @@ public class FastXPHudMixin {
         int height = mc.getWindow().getGuiScaledHeight();
 
         // =========================================================================
-        // 1. ОТРЕСОВКА БРОНИ И ЕЕ ПРОЧНОСТИ (Слева снизу)
+        // 1. ИНДИКАТОР SAFE TOTEM (Текст над инвентарём при критическом HP)
+        // =========================================================================
+        float health = mc.player.getHealth();
+        // Если здоровья меньше 6 (3 сердца) и в руках (главной или левой) нет тотема
+        if (health <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
+            String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
+            
+            // Рассчитываем центр экрана по горизонтали и позицию ровно НАД хотбаром/инвентарём
+            int textX = (width - mc.font.width(warningText)) / 2;
+            int textY = height - 68; // Идеальная высота над панелью предметов
+
+            // Создаем эффект плавного мигания текста (от ярко-красного до тёмного)
+            int alpha = (int) (Mth.sin((float)mc.player.tickCount * 0.4f) * 85 + 170);
+            int blinkColor = (alpha << 24) | 0xFF2222; // Насыщенный красный цвет
+
+            // Отресовываем предупреждение с красивой тенью
+            guiGraphics.drawString(mc.font, warningText, textX, textY, blinkColor, true);
+        }
+
+        // =========================================================================
+        // 2. ОТРЕСОВКА БРОНИ И ЕЕ ПРОЧНОСТИ (Слева снизу)
         // =========================================================================
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         int armorY = height - 55; 
@@ -41,15 +63,13 @@ public class FastXPHudMixin {
                     int currentDamage = maxDamage - stack.getDamageValue();
                     float ratio = (float) currentDamage / maxDamage;
 
-                    int color = 0xFF00FF00; // Зеленый (Много прочности)
-                    if (ratio < 0.25f) color = 0xFFFF0000; // Красный (Сломается!)
-                    else if (ratio < 0.5f) color = 0xFFFFAA00; // Желтый
+                    int color = 0xFF00FF00; 
+                    if (ratio < 0.25f) color = 0xFFFF0000; 
+                    else if (ratio < 0.5f) color = 0xFFFFAA00;
 
-                    // Полоска прочности
                     guiGraphics.fill(armorX + 18, armorY + 6, armorX + 58, armorY + 11, 0x80000000);
                     guiGraphics.fill(armorX + 19, armorY + 7, armorX + 19 + (int)(38 * ratio), armorY + 10, color);
 
-                    // Числовое значение (Например: 120/400)
                     String text = currentDamage + "/" + maxDamage;
                     guiGraphics.drawString(mc.font, text, armorX + 62, armorY + 4, 0xFFFFFFFF, true);
                 }
@@ -58,12 +78,11 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // 2. СЧЕТЧИК ТОТЕМОВ И ЗОЛОТЫХ ЯБЛОК ДЛЯ PvP (Справа снизу)
+        // 3. СЧЕТЧИК ТОТЕМОВ И ЯБЛОК В ЗАКРУГЛЕННЫХ ПЛАШКАХ (Справа снизу)
         // =========================================================================
         int totemCount = 0;
         int gappleCount = 0;
 
-        // Сканируем весь инвентарь игрока на наличие предметов PvP
         for (int i = 0; i < mc.player.getInventory().getContainerSize(); i++) {
             ItemStack item = mc.player.getInventory().getItem(i);
             if (item.is(Items.TOTEM_OF_UNDYING)) totemCount += item.getCount();
@@ -73,27 +92,28 @@ public class FastXPHudMixin {
         int pvpItemsX = width / 2 + 105;
         int pvpItemsY = height - 55;
 
-        // Рисуем Тотемы
         if (totemCount > 0) {
+            guiGraphics.fill(pvpItemsX - 2, pvpItemsY - 2, pvpItemsX + 45, pvpItemsY + 18, 0xAA000000);
+            guiGraphics.renderOutline(pvpItemsX - 2, pvpItemsY - 2, 47, 20, 0xAA555555);
             guiGraphics.renderItem(new ItemStack(Items.TOTEM_OF_UNDYING), pvpItemsX, pvpItemsY);
             guiGraphics.drawString(mc.font, "x" + totemCount, pvpItemsX + 18, pvpItemsY + 4, 0xFFFFFF00, true);
-            pvpItemsY -= 18;
+            pvpItemsY -= 22;
         }
-        // Рисуем Яблоки
         if (gappleCount > 0) {
+            guiGraphics.fill(pvpItemsX - 2, pvpItemsY - 2, pvpItemsX + 45, pvpItemsY + 18, 0xAA000000);
+            guiGraphics.renderOutline(pvpItemsX - 2, pvpItemsY - 2, 47, 20, 0xAA555555);
             guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
             guiGraphics.drawString(mc.font, "x" + gappleCount, pvpItemsX + 18, pvpItemsY + 4, 0xFFFFAA00, true);
         }
 
         // =========================================================================
-        // 3. ЭФФЕКТЫ ЗЕЛИЙ (Справа сверху с закругленными рамками)
+        // 4. ЭФФЕКТЫ ЗЕЛИЙ (Справа сверху)
         // =========================================================================
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 115;
 
         for (MobEffectInstance effect : effects) {
-            // Рисуем рамку эффекта
             guiGraphics.fill(effectX, effectY, width - 10, effectY + 22, 0xAA000000);
             guiGraphics.renderOutline(effectX, effectY, 105, 22, 0xAA555555);
 
@@ -101,13 +121,36 @@ public class FastXPHudMixin {
             int durationTicks = effect.getDuration();
             String time = durationTicks == -1 ? "**:**" : String.format("%d:%02d", (durationTicks / 20) / 60, (durationTicks / 20) % 60);
 
-            // Ограничиваем длину имени, чтобы текст не вылезал за плашку
             if (name.length() > 12) name = name.substring(0, 10) + "..";
 
             guiGraphics.drawString(mc.font, name, effectX + 6, effectY + 2, 0xFFFFFF, true);
             guiGraphics.drawString(mc.font, time, effectX + 6, effectY + 11, 0xAAAAAA, true);
 
             effectY += 26; 
+        }
+
+        // =========================================================================
+        // 5. ТАЙМЕРЫ КУЛДАУНОВ НА ИКОНКАХ (Жемчуг, яблоки, щиты)
+        // =========================================================================
+        for (int slot = 0; slot < 9; slot++) {
+            ItemStack stack = mc.player.getInventory().getItem(slot);
+            if (!stack.isEmpty()) {
+                Item item = stack.getItem();
+                float cooldownPercent = mc.player.getCooldowns().getCooldownPercent(item, partialTick);
+                
+                if (cooldownPercent > 0.0f) {
+                    float secondsLeft = (cooldownPercent * 15); 
+                    if (item == Items.CHORUS_FRUIT) secondsLeft = (cooldownPercent * 1);
+                    if (item == Items.SHIELD) secondsLeft = (cooldownPercent * 5);
+
+                    if (secondsLeft > 0.1f) {
+                        String cooldownText = String.format("%.1f", secondsLeft);
+                        int slotX = width / 2 - 90 + (slot * 20) + 2;
+                        int slotY = height - 19;
+                        guiGraphics.drawString(mc.font, cooldownText, slotX, slotY, 0xFFFF5555, true);
+                    }
+                }
+            }
         }
     }
 }
