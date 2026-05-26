@@ -1,9 +1,16 @@
 pluginManagement {
     repositories {
+        // Официальный мавен Forge (без него плагин не скачается)
         maven { url = 'https://minecraftforge.net' }
+        // Мавен SpongePowered для миксинов
         maven { url = 'https://spongepowered.org' }
         mavenCentral()
+        gradlePluginPortal()
     }
+}
+
+plugins {
+    id 'com.gradle.enterprise' version '3.16'
 }
 
 rootProject.name = 'fastxp'
