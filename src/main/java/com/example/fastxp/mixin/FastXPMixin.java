@@ -95,9 +95,10 @@ public class FastXPMixin {
 
 @Mixin(net.minecraft.client.renderer.GameRenderer.class)
 abstract class NoHurtCamMixin {
-    // Прописываем точный дескриптор метода hurtAnimation(PoseStack, float) для 1.20.4
-    @Inject(method = "hurtAnimation(Lcom/mojang/blaze3d/vertex/PoseStack;F)V", at = @At("HEAD"), cancellable = true)
-    private void onHurtAnimation(com.mojang.blaze3d.vertex.PoseStack poseStack, float partialTicks, CallbackInfo ci) {
+    // В 1.20.4 этот метод называется bobHurt вместо hurtAnimation
+    @Inject(method = "bobHurt(Lcom/mojang/blaze3d/vertex/PoseStack;F)V", at = @At("HEAD"), cancellable = true)
+    private void onBobHurt(com.mojang.blaze3d.vertex.PoseStack poseStack, float partialTicks, CallbackInfo ci) {
+        // Блокируем тряску экрана при получении любого урона
         ci.cancel();
     }
 }
