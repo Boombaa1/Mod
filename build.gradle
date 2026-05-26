@@ -1,8 +1,18 @@
-plugins {
-    id 'net.minecraftforge.gradle' version '6.0.24'
-    id 'org.spongepowered.mixin' version '0.7.3'
+buildscript {
+    repositories {
+        maven { url = 'https://minecraftforge.net' }
+        maven { url = 'https://spongepowered.org' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:6.0.24'
+        classpath 'org.spongepowered:mixingradle:0.7.3'
+    }
 }
 
+// Применяем плагины через классический метод, он никогда не выдает ошибку "Plugin not found"
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
 
 group = 'com.example'
 version = '1.0.0'
@@ -26,10 +36,6 @@ mixin {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.4-49.0.33'
