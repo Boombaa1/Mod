@@ -21,24 +21,34 @@ public class ElytraRollMixin {
 
         // Проверяем, летит ли игрок на элитрах
         if (mc.player.isFallFlying()) {
-            // Считываем скорость поворота головы игрока (разница между текущим и прошлым кадром)
-            float turnSpeed = mc.player.getViewYRot() - mc.player.yRotO;
+            // Исправленный расчет поворота в градусах для 1.20.4
+            float currentYRot = mc.player.getYRot();
+            float lastYRot = mc.player.yRotO;
 
-            // Сглаживаем наклон камеры (чтобы не было резких рывков)
-            float targetRoll = turnSpeed * -2.0f; // Умножаем, чтобы наклон был заметнее
-            currentRoll = currentRoll + (targetRoll - currentRoll) * 0.1f * partialTicks;
+            // Высчитываем чистую скорость поворота мыши
+            float turnSpeed = currentYRot - lastYRot;
 
-            // Ограничиваем максимальный наклон вбок (например, до 45 градусов), если не делаем сальто
-            if (currentRoll > 45.0f) currentRoll = 45.0f;
-            if (currentRoll < -45.0f) currentRoll = -45.0f;
+            // Обрабатываем переход угла через границу 180/-180 градусов, чтобы камеру не дергало при развороте на юг
+            if (turnSpeed < -180.0f) turnSpeed += 360.0f;
+            if (turnSpeed > 180.0f) turnSpeed -= 360.0f;
+
+            // Сглаживаем наклон камеры (увеличиваем множитель для эффекта)
+            float targetRoll = turnSpeed * -2.5f; 
+            currentRoll = currentRoll + (targetRoll - currentRoll) * 0.15f * partialTicks;
+
+            // Ограничиваем максимальный наклон вбок до 50 градусов
+            if (currentRoll > 50.0f) currentRoll = 50.0f;
+            if (currentRoll < -50.0f) currentRoll = -50.0f;
 
             // Применяем наклон экрана по оси Z
             poseStack.mulPose(Axis.ZP.rotationDegrees(currentRoll));
         } else {
             // Если игрок на земле, плавно возвращаем камеру в ровное положение
-            if (currentRoll != 0.0f) {
+            if (Math.abs(currentRoll) > 0.01f) {
                 currentRoll = currentRoll + (0.0f - currentRoll) * 0.2f * partialTicks;
                 poseStack.mulPose(Axis.ZP.rotationDegrees(currentRoll));
+            } else {
+                currentRoll = 0.0f;
             }
         }
     }
