@@ -241,10 +241,10 @@ public class FastXPHudHandler {
     }
 
     // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
-    @SubscribeEvent
-    public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
-        if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_EFFECTS.id())) {
-            event.setCanceled(true);
-        }
+   @SubscribeEvent
+public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
+    if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_ICONS.id())) {
+        event.setCanceled(true);
     }
+ }
 }
