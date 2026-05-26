@@ -20,8 +20,8 @@ import java.util.Collection;
 @Mixin(net.minecraft.client.gui.Gui.class)
 public class FastXPHudMixin {
 
-    // ИСПРАВЛЕНО: для Forge 1.20.4 изменены аргументы метода 'render' (GuiGraphics и float)
-    @Inject(method = "render", at = @At("HEAD"), remap = false)
+    // ИСПРАВЛЕНО: Внедряемся в метод renderEffects вместо render, убираем remap = false
+    @Inject(method = "renderEffects", at = @At("HEAD"))
     private void renderUltimatePvPHud(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
@@ -145,7 +145,7 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // ИСПРАВЛЕНО: ЗАКРЫТ БЛОК ТАЙМЕРОВ КУЛДАУНОВ
+        // ТАЙМЕРЫ КУЛДАУНОВ НА ИКОНКАХ
         // =========================================================================
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = mc.player.getInventory().getItem(slot);
