@@ -35,7 +35,7 @@ public class FastXPHudHandler {
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
 
-    // ОПТИМИЗАЦИЯ: Отключаем рендер игроков и мобов за спиной
+    // Оптимизация: Отключаем рендер игроков и мобов за спиной
     @SubscribeEvent
     public static void onFrustumCulling(RenderLivingEvent.Pre<?, ?> event) {
         Minecraft mc = Minecraft.getInstance();
@@ -45,28 +45,27 @@ public class FastXPHudHandler {
         if (look.dot(target) < -0.1) event.setCanceled(true);
     }
 
-    // УЛЬТРА-ПУЛЕМЁТ: Работает каждый кадр (Render Tick), а не раз в тик игры!
+    // ИСПРАВЛЕНО: Безопасный и быстрый пулемет без киков античита (20 кликов в секунду)
     @SubscribeEvent
-    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) return;
 
-        // Если зажат правый клик
+        // Работает строго каждый тик игры (20 раз в секунду) — легальный максимум для серверов
         if (mc.options.keyUse.isDown()) {
             ItemStack mainStack = mc.player.getMainHandItem();
             ItemStack offStack = mc.player.getOffhandItem();
             
-            // Проверяем, опыт ли в руках
             boolean hasXp = mainStack.getItem() instanceof ExperienceBottleItem || offStack.getItem() instanceof ExperienceBottleItem;
             boolean hasPotion = mainStack.getItem() instanceof ThrowablePotionItem || offStack.getItem() instanceof ThrowablePotionItem;
             
             if (hasXp || hasPotion) {
-                // Стираем задержки клика Майнкрафта мгновенно в текущем кадре
+                // Стираем визуальный кулдаун
                 mc.player.getCooldowns().removeCooldown(mainStack.getItem());
                 mc.player.getCooldowns().removeCooldown(offStack.getItem());
                 
-                // Форсируем отправку пакета использования на сервер без ожидания задержек
+                // Швыряем строго по одной бутылочке в тик из активной руки
                 for (InteractionHand hand : InteractionHand.values()) {
                     ItemStack itemInHand = mc.player.getItemInHand(hand);
                     if (itemInHand.getItem() instanceof ExperienceBottleItem || itemInHand.getItem() instanceof ThrowablePotionItem) {
