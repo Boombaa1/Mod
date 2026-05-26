@@ -2,6 +2,8 @@ package com.example.fastxp.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
@@ -27,27 +29,43 @@ public class FastXPHudMixin {
         int height = mc.getWindow().getGuiScaledHeight();
 
         // =========================================================================
-        // 1. ИНДИКАТОР SAFE TOTEM (Текст над инвентарём при критическом HP)
+        // НОВЫЙ БЛОК: ОТРЕСОВКА ФПС И ПИНГА (По центру сверху)
+        // =========================================================================
+        int fps = Minecraft.fps;
+        int ping = 0;
+        
+        ClientPacketListener connection = mc.getConnection();
+        if (connection != null) {
+            PlayerInfo playerInfo = connection.getPlayerInfo(mc.player.getUUID());
+            if (playerInfo != null) {
+                ping = playerInfo.getLatency();
+            }
+        }
+
+        String hudText = "§a" + fps + " §fFPS  §7|  §b" + ping + " §fPing";
+        int hudX = (width - mc.font.width(hudText)) / 2;
+        int hudY = 6;
+
+        // Рисуем красивую темную подложку с закругленными рамками в стиле майна
+        guiGraphics.fill(hudX - 6, hudY - 3, hudX + mc.font.width(hudText) + 6, hudY + 11, 0x99000000);
+        guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
+        guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
+
+        // =========================================================================
+        // ИНДИКАТОР SAFE TOTEM (Текст над инвентарём при критическом HP)
         // =========================================================================
         float health = mc.player.getHealth();
-        // Если здоровья меньше 6 (3 сердца) и в руках (главной или левой) нет тотема
         if (health <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
-            
-            // Рассчитываем центр экрана по горизонтали и позицию ровно НАД хотбаром/инвентарём
             int textX = (width - mc.font.width(warningText)) / 2;
-            int textY = height - 68; // Идеальная высота над панелью предметов
-
-            // Создаем эффект плавного мигания текста (от ярко-красного до тёмного)
+            int textY = height - 68; 
             int alpha = (int) (Mth.sin((float)mc.player.tickCount * 0.4f) * 85 + 170);
-            int blinkColor = (alpha << 24) | 0xFF2222; // Насыщенный красный цвет
-
-            // Отресовываем предупреждение с красивой тенью
+            int blinkColor = (alpha << 24) | 0xFF2222;
             guiGraphics.drawString(mc.font, warningText, textX, textY, blinkColor, true);
         }
 
         // =========================================================================
-        // 2. ОТРЕСОВКА БРОНИ И ЕЕ ПРОЧНОСТИ (Слева снизу)
+        // ОТРЕСОВКА БРОНИ И ЕЕ ПРОЧНОСТИ (Слева снизу)
         // =========================================================================
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         int armorY = height - 55; 
@@ -57,12 +75,10 @@ public class FastXPHudMixin {
             ItemStack stack = mc.player.getItemBySlot(slot);
             if (!stack.isEmpty()) {
                 guiGraphics.renderItem(stack, armorX, armorY);
-
                 if (stack.isDamageableItem()) {
                     int maxDamage = stack.getMaxDamage();
                     int currentDamage = maxDamage - stack.getDamageValue();
                     float ratio = (float) currentDamage / maxDamage;
-
                     int color = 0xFF00FF00; 
                     if (ratio < 0.25f) color = 0xFFFF0000; 
                     else if (ratio < 0.5f) color = 0xFFFFAA00;
@@ -78,11 +94,10 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // 3. СЧЕТЧИК ТОТЕМОВ И ЯБЛОК В ЗАКРУГЛЕННЫХ ПЛАШКАХ (Справа снизу)
+        // СЧЕТЧИК ТОТЕМОВ И ЯБЛОК В ЗАКРУГЛЕННЫХ ПЛАШКАХ (Справа снизу)
         // =========================================================================
         int totemCount = 0;
         int gappleCount = 0;
-
         for (int i = 0; i < mc.player.getInventory().getContainerSize(); i++) {
             ItemStack item = mc.player.getInventory().getItem(i);
             if (item.is(Items.TOTEM_OF_UNDYING)) totemCount += item.getCount();
@@ -107,7 +122,7 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // 4. ЭФФЕКТЫ ЗЕЛИЙ (Справа сверху)
+        // ЭФФЕКТЫ ЗЕЛИЙ (Справа сверху)
         // =========================================================================
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
@@ -130,7 +145,7 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // 5. ТАЙМЕРЫ КУЛДАУНОВ НА ИКОНКАХ (Жемчуг, яблоки, щиты)
+        // ТАЙМЕРЫ КУЛДАУНОВ НА ИКОНКАХ (Жемчуг, яблоки, щиты)
         // =========================================================================
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = mc.player.getInventory().getItem(slot);
