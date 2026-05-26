@@ -88,14 +88,14 @@ public class FastXPHudHandler {
             }
         }
     }
-    // Буст скорости полёта предметов на Shift и пулемётный сброс таймера кликов
+    // Буст скорости полёта предметов на Shift и фикс кликов мыши на 1.20.4
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (mc.player == null || mc.gameMode == null) return;
 
-        // Фикс пулемёта: если зажат ПКМ и в руке опыт/зелья/перлы — зануляем задержку клика мыши
+        // Фикс пулемёта: используем встроенный метод клика Forge, чтобы обойти mc.missTime
         if (mc.options.keyUse.isDown()) {
             for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
                 ItemStack stack = mc.player.getItemInHand(hand);
@@ -104,9 +104,9 @@ public class FastXPHudHandler {
                     stack.getItem() instanceof EnderpearlItem || 
                     stack.getItem() instanceof BowItem)) {
                     
-                    // Обнуляем внутренний таймер задержки кликов в лаунчере (rightClickDelayTimer) для 1.20.4
-                    mc.missTime = 0;
                     mc.player.getCooldowns().removeCooldown(stack.getItem());
+                    // Принудительно заставляем лаунчер прожимать ПКМ каждый тик
+                    mc.startUseItem();
                 }
             }
         }
