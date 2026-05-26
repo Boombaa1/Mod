@@ -1,1 +1,12 @@
+pluginManagement {
+    repositories {
+        // Подключаем официальное рабочее зеркало Forge
+        maven { url = 'https://maven.minecraftforge.net/' }
+        // Подключаем репозиторий для миксинов
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = 'fastxp'
