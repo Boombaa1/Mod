@@ -1,11 +1,9 @@
 pluginManagement {
     repositories {
-        // Правильный и стабильный сервер Forge
+        gradlePluginPortal() // Официальный портал плагинов Gradle (всегда работает)
         maven { url = 'https://minecraftforge.net' }
-        // Сервер для миксинов
         maven { url = 'https://spongepowered.org' }
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 
