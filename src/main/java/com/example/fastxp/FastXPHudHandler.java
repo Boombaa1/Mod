@@ -1,3 +1,4 @@
+// СТРОКА 1: НАЧАЛО ФАЙЛА (Пакет и все импорты)
 package com.example.fastxp;
 
 import net.minecraft.client.Minecraft;
@@ -34,7 +35,7 @@ public class FastXPHudHandler {
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
 
-    // Оптимизация: Отключаем рендер игроков и мобов за спиной
+    // СТРОКА 39: СЕРЕДИНА ЧАСТИ 1 (Оптимизация рендера за спиной)
     @SubscribeEvent
     public static void onRenderLivingPre(RenderLivingEvent.Pre<?, ?> event) {
         Minecraft mc = Minecraft.getInstance();
@@ -49,7 +50,7 @@ public class FastXPHudHandler {
         }
     }
 
-    // Проверка эффектов, алерты и сканирование брони врагов
+    // СТРОКА 55: КОНЕЦ ЧАСТИ 1 (Проверка дебаффов, алерты на перлы и броню)
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player user = event.player;
@@ -88,14 +89,14 @@ public class FastXPHudHandler {
             }
         }
     }
-    // Буст скорости полёта предметов на Shift и фикс кликов мыши на 1.20.4
+// СТРОКА 100: КОНЕЦ ПЕРВОЙ ЧАСТИ ФАЙЛА
+    // СТРОКА 101: НАЧАЛО ВТОРОЙ ЧАСТИ (Сброс кулдауна при зажатии мыши ПКМ)
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.gameMode == null) return;
+        if (mc.player == null) return;
 
-        // Фикс пулемёта: используем встроенный метод клика Forge, чтобы обойти mc.missTime
         if (mc.options.keyUse.isDown()) {
             for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
                 ItemStack stack = mc.player.getItemInHand(hand);
@@ -105,14 +106,12 @@ public class FastXPHudHandler {
                     stack.getItem() instanceof BowItem)) {
                     
                     mc.player.getCooldowns().removeCooldown(stack.getItem());
-                    // Принудительно заставляем лаунчер прожимать ПКМ каждый тик
-                    mc.rightClickDelayTimer = 0; // Сбрасываем внутренний таймер задержки клика в ноль
-
                 }
             }
         }
     }
 
+    // СТРОКА 123: СЕРЕДИНА ЧАСТИ 2 (Ускорение предметов на Shift)
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
         Player user = event.getEntity();
@@ -135,7 +134,7 @@ public class FastXPHudHandler {
         }
     }
 
-    // 3. ОТРИСОВКА ВСЕГО КАСТОМНОГО PvP-ИНТЕРФЕЙСА (HUD)
+    // СТРОКА 146: ОТРЕСОВКА PvP-ИНТЕРФЕЙСА (HUD, Броня, Тотемы, Зелья)
     @SubscribeEvent
     public static void onRenderHud(CustomizeGuiOverlayEvent.DebugText event) {
         Minecraft mc = Minecraft.getInstance();
@@ -145,7 +144,6 @@ public class FastXPHudHandler {
         int width = mc.getWindow().getGuiScaledWidth();
         int height = mc.getWindow().getGuiScaledHeight();
 
-        // FPS и Пинг по центру экрана
         int fps = mc.getFps();
         int ping = 0;
         ClientPacketListener connection = mc.getConnection();
@@ -162,13 +160,11 @@ public class FastXPHudHandler {
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
 
-        // Pre-Warning Safe Totem
         if (mc.player.getHealth() <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
 
-        // Индикаторы брони справа от инвентаря
         EquipmentSlot[] slots = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
         int armorY = height - 55; 
         int armorX = width / 2 + 105; 
@@ -193,7 +189,6 @@ public class FastXPHudHandler {
             armorY -= 18; 
         }
 
-        // Считаем тотемы и яблоки 5 раз в секунду
         if (mc.player.tickCount % 4 == 0) {
             int currentTotems = 0;
             int currentGapples = 0;
@@ -221,7 +216,6 @@ public class FastXPHudHandler {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // Кастомное меню эффектов зелий в правой части экрана
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
@@ -246,7 +240,7 @@ public class FastXPHudHandler {
         }
     }
 
-    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
+    // СТРОКА 242: ПРЕДПОСЛЕДНИЙ БЛОК (Скрытие ванильных иконок)
     @SubscribeEvent
     public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
         if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_ICONS.id())) {
@@ -254,3 +248,4 @@ public class FastXPHudHandler {
         }
     }
 }
+// СТРОКА 251: САМЫЙ КОНЕЦ ФАЙЛА
