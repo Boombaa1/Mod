@@ -20,7 +20,7 @@ import java.util.Collection;
 @Mixin(net.minecraft.client.gui.Gui.class)
 public class FastXPHudMixin {
 
-    @Inject(method = "renderHotbar", at = @At("HEAD"))
+    @Inject(method = "render", at = @At("HEAD"), remap = false)
     private void renderUltimatePvPHud(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
