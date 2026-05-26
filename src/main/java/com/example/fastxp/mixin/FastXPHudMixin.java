@@ -29,9 +29,9 @@ public class FastXPHudMixin {
         int height = mc.getWindow().getGuiScaledHeight();
 
         // =========================================================================
-        // НОВЫЙ БЛОК: ОТРЕСОВКА ФПС И ПИНГА (По центру сверху)
+        // ИСПРАВЛЕННЫЙ БЛОК: ОТРЕСОВКА ФПС И ПИНГА (Используем mc.getFps())
         // =========================================================================
-        int fps = Minecraft.fps;
+        int fps = mc.getFps();
         int ping = 0;
         
         ClientPacketListener connection = mc.getConnection();
@@ -46,7 +46,6 @@ public class FastXPHudMixin {
         int hudX = (width - mc.font.width(hudText)) / 2;
         int hudY = 6;
 
-        // Рисуем красивую темную подложку с закругленными рамками в стиле майна
         guiGraphics.fill(hudX - 6, hudY - 3, hudX + mc.font.width(hudText) + 6, hudY + 11, 0x99000000);
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
