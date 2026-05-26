@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -15,6 +16,7 @@ import net.minecraft.world.item.*;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -25,7 +27,7 @@ import java.util.Collection;
 @Mod.EventBusSubscriber(modid = "fastxp", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class FastXPHudHandler {
 
-    // 1. МГНОВЕННЫЙ СБРОС КУЛДАУНА (Работает и на сервере, и на клиенте)
+    // 1. МГНОВЕННЫЙ СБРОС КУЛДАУНА И БУСТ ПРЕДМЕТОВ НА SHIFT
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
         Player user = event.getEntity();
@@ -37,10 +39,8 @@ public class FastXPHudHandler {
             stack.getItem() instanceof EnderpearlItem || 
             stack.getItem() instanceof BowItem) {
             
-            // Стираем задержку использования на обеих сторонах игры
             user.getCooldowns().removeCooldown(stack.getItem());
             
-            // Буст скорости в 3 раза на Shift (только для сервера, чтобы летело у всех)
             if (!user.level().isClientSide() && user.isShiftKeyDown()) {
                 user.level().getEntitiesOfClass(ThrownExperienceBottle.class, user.getBoundingBox().inflate(2.0)).forEach(bottle -> {
                     if (bottle.getOwner() == user) bottle.setDeltaMovement(bottle.getDeltaMovement().scale(3.0));
@@ -55,18 +55,16 @@ public class FastXPHudHandler {
         }
     }
 
-    // 2. ЕЖЕТИКОВАЯ ПРОВЕРКА (Разделена логика сервера и клиента)
+    // 2. ЕЖЕТИКОВАЯ ОЧИСТКА ОТ ЭФФЕКТОВ, АЛЕРТЫ НА ПЕРЛЫ И ПОЛОМКУ БРОНИ ВРАГОВ
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player user = event.player;
         if (user == null || event.phase != TickEvent.Phase.START) return;
 
-        // Очистка от эффектов работает везде
         if (user.hasEffect(MobEffects.BLINDNESS)) user.removeEffect(MobEffects.BLINDNESS);
         if (user.hasEffect(MobEffects.DARKNESS)) user.removeEffect(MobEffects.DARKNESS);
         if (user.hasEffect(MobEffects.CONFUSION)) user.removeEffect(MobEffects.CONFUSION);
 
-        // Сообщения в чат отправляем только со стороны сервера, чтобы они не дублировались
         if (!user.level().isClientSide()) {
             user.level().getEntitiesOfClass(ThrownEnderpearl.class, user.getBoundingBox().inflate(30.0)).forEach(pearl -> {
                 if (pearl.getOwner() != user && pearl.tickCount == 1) {
@@ -94,7 +92,7 @@ public class FastXPHudHandler {
             });
         }
     }
-    // 3. ОТРЕСОВКА ИНТЕРФЕЙСА (HUD) СПРАВА ОТ ИНВЕНТАРЯ
+    // 3. ОТРИСОВКА ВСЕГО КАСТОМНОГО PvP-ИНТЕРФЕЙСА (HUD)
     @SubscribeEvent
     public static void onRenderHud(CustomizeGuiOverlayEvent.DebugText event) {
         Minecraft mc = Minecraft.getInstance();
@@ -104,7 +102,7 @@ public class FastXPHudHandler {
         int width = mc.getWindow().getGuiScaledWidth();
         int height = mc.getWindow().getGuiScaledHeight();
 
-        // FPS и Пинг
+        // FPS и Пинг по центру экрана
         int fps = mc.getFps();
         int ping = 0;
         ClientPacketListener connection = mc.getConnection();
@@ -121,16 +119,16 @@ public class FastXPHudHandler {
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
 
-        // Safe Totem
+        // Предупреждение Safe Totem при низком здоровье
         if (mc.player.getHealth() <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
 
-        // Броня справа от инвентаря (Порядок исправлен: шлем СВЕРХУ)
+        // Индикаторы брони справа от инвентаря (Шлем сверху, ботинки снизу)
         EquipmentSlot[] slots = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
         int armorY = height - 55; 
-        int armorX = width / 2 + 105; // Сдвинуто правее, чтобы не накладываться на полоски здоровья
+        int armorX = width / 2 + 105; 
 
         for (EquipmentSlot slot : slots) {
             ItemStack stack = mc.player.getItemBySlot(slot);
@@ -152,7 +150,7 @@ public class FastXPHudHandler {
             armorY -= 18; 
         }
 
-        // Тотемы и яблоки в плашках
+        // Счетчики тотемов и яблок в руке/инвентаре
         int totemCount = 0;
         int gappleCount = 0;
         for (int i = 0; i < mc.player.getInventory().getContainerSize(); i++) {
@@ -161,7 +159,7 @@ public class FastXPHudHandler {
             if (item.is(Items.GOLDEN_APPLE) || item.is(Items.ENCHANTED_GOLDEN_APPLE)) gappleCount += item.getCount();
         }
 
-        int pvpItemsX = width / 2 + 235; // Сдвинуто ещё правее, чтобы быть в ряд за броней
+        int pvpItemsX = width / 2 + 235; 
         int pvpItemsY = height - 55;
 
         guiGraphics.fill(pvpItemsX - 2, pvpItemsY - 2, pvpItemsX + 45, pvpItemsY + 18, 0xAA000000);
@@ -176,22 +174,37 @@ public class FastXPHudHandler {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + gappleCount, pvpItemsX + 18, pvpItemsY + 4, gappleCount > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // Эффекты зелий
+        // Кастомное меню эффектов зелий в правой части экрана (С иконками!)
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
-        int effectX = width - 115;
+        int effectX = width - 125; 
 
         for (MobEffectInstance effect : effects) {
             guiGraphics.fill(effectX, effectY, width - 10, effectY + 22, 0xAA000000);
-            guiGraphics.renderOutline(effectX, effectY, 105, 22, 0xAA555555);
+            guiGraphics.renderOutline(effectX, effectY, 115, 22, 0xAA555555);
+
+            // Отрисовка ванильной цветной иконки зелья на плашке
+            TextureAtlasSprite sprite = mc.getMobEffectTextures().get(effect.getEffect());
+            if (sprite != null) {
+                guiGraphics.blit(effectX + 4, effectY + 4, 0, 14, 14, sprite);
+            }
+
             String name = effect.getEffect().getDisplayName().getString();
-            if (name.length() > 12) name = name.substring(0, 10) + "..";
+            if (name.length() > 11) name = name.substring(0, 9) + "..";
             int ticks = effect.getDuration();
             String time = ticks == -1 ? "**:**" : String.format("%d:%02d", (ticks / 20) / 60, (ticks / 20) % 60);
 
-            guiGraphics.drawString(mc.font, name, effectX + 6, effectY + 2, 0xFFFFFFFF, true);
-            guiGraphics.drawString(mc.font, time, effectX + 6, effectY + 11, 0xAAAAAA00, true);
+            guiGraphics.drawString(mc.font, name, effectX + 24, effectY + 2, 0xFFFFFFFF, true);
+            guiGraphics.drawString(mc.font, time, effectX + 24, effectY + 11, 0xFFFFFF00, true);
             effectY += 26; 
+        }
+    }
+
+    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
+    @SubscribeEvent
+    public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
+        if (event.getOverlay().id().toString().contains("potion_effects")) {
+            event.setCanceled(true);
         }
     }
 }
