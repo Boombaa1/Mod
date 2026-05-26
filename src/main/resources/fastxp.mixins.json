@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "FastXPMixin",
-    "ElytraRollMixin"
+    "ElytraRollMixin",
+    "NoHurtCamMixin"
   ],
   "injectors": {
     "defaultRequire": 1
