@@ -1,8 +1,8 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal() // Официальный портал плагинов Gradle (всегда работает)
         maven { url = 'https://minecraftforge.net' }
         maven { url = 'https://spongepowered.org' }
+        gradlePluginPortal()
         mavenCentral()
     }
 }
