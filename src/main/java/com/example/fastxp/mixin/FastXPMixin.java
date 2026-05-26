@@ -93,12 +93,11 @@ public class FastXPMixin {
     }
 }
 
-// Отдельный миксин прямо в этом файле для отключения тряски камеры (No Hurt Cam)
 @Mixin(net.minecraft.client.renderer.GameRenderer.class)
 abstract class NoHurtCamMixin {
-    @Inject(method = "hurtAnimation", at = @At("HEAD"), cancellable = true)
+    // Прописываем точный дескриптор метода hurtAnimation(PoseStack, float) для 1.20.4
+    @Inject(method = "hurtAnimation(Lcom/mojang/blaze3d/vertex/PoseStack;F)V", at = @At("HEAD"), cancellable = true)
     private void onHurtAnimation(com.mojang.blaze3d.vertex.PoseStack poseStack, float partialTicks, CallbackInfo ci) {
-        // Блокируем вызов оригинальной анимации покачивания экрана при уроне
         ci.cancel();
     }
 }
