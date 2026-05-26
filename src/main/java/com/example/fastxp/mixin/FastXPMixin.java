@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Player.class)
 public class FastXPMixin {
 
-    // Срезаем задержку тиков использования на уровне игрока
-    @Inject(method = "m_36135_", at = @At("HEAD"), remap = false)
+    // Срезаем задержку тиков использования на уровне игрока в Forge 1.20.4
+    @Inject(method = "isUsingItem", at = @At("HEAD"), cancellable = true)
     private void removeServerUseDelay(CallbackInfoReturnable<Boolean> cir) {
         Player player = (Player) (Object) this;
         ItemStack mainHand = player.getMainHandItem();
@@ -25,8 +25,8 @@ public class FastXPMixin {
         if (mainHand.getItem() instanceof ExperienceBottleItem || mainHand.getItem() instanceof ThrowablePotionItem || mainHand.getItem() instanceof EnderpearlItem || mainHand.getItem() instanceof BowItem ||
             offHand.getItem() instanceof ExperienceBottleItem || offHand.getItem() instanceof ThrowablePotionItem || offHand.getItem() instanceof EnderpearlItem || offHand.getItem() instanceof BowItem) {
             
-            // Если игрок зажимает клик, принудительно обнуляем внутренний счетчик тиков снаряда
-            player.m_21235_(); 
+            // Принудительно заставляем сервер считать, что задержки между бросками нет
+            cir.setReturnValue(false);
         }
     }
 }
