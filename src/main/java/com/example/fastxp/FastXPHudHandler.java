@@ -14,9 +14,11 @@ import net.minecraft.world.entity.projectile.ThrownExperienceBottle;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.*;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -24,47 +26,32 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.Collection;
 
-@Mod.EventBusSubscriber(modid = "fastxp", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@Mod.EventBusSubscriber(modid = "fastxp", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class FastXPHudHandler {
 
-    // 1. МГНОВЕННЫЙ СБРОС КУЛДАУНА И БУСТ ПРЕДМЕТОВ НА SHIFT
-    @SubscribeEvent
-    public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
-        Player user = event.getEntity();
-        if (user == null) return;
-
-        ItemStack stack = event.getItemStack();
-        if (stack.getItem() instanceof ExperienceBottleItem || 
-            stack.getItem() instanceof ThrowablePotionItem || 
-            stack.getItem() instanceof EnderpearlItem || 
-            stack.getItem() instanceof BowItem) {
-            
-            user.getCooldowns().removeCooldown(stack.getItem());
-            
-            if (!user.level().isClientSide() && user.isShiftKeyDown()) {
-                user.level().getEntitiesOfClass(ThrownExperienceBottle.class, user.getBoundingBox().inflate(2.0)).forEach(bottle -> {
-                    if (bottle.getOwner() == user) bottle.setDeltaMovement(bottle.getDeltaMovement().scale(3.0));
-                });
-                user.level().getEntitiesOfClass(ThrownPotion.class, user.getBoundingBox().inflate(2.0)).forEach(potion -> {
-                    if (potion.getOwner() == user) potion.setDeltaMovement(potion.getDeltaMovement().scale(3.0));
-                });
-                user.level().getEntitiesOfClass(ThrownEnderpearl.class, user.getBoundingBox().inflate(2.0)).forEach(pearl -> {
-                    if (pearl.getOwner() == user) pearl.setDeltaMovement(pearl.getDeltaMovement().scale(3.0));
-                });
-            }
-        }
-    }
-
-    // 2. ЕЖЕТИКОВАЯ ОЧИСТКА ОТ ЭФФЕКТОВ, АЛЕРТЫ НА ПЕРЛЫ И ПОЛОМКУ БРОНИ ВРАГОВ
+    // 1. ИСПРАВЛЕНО: Бесконечный сброс кулдауна каждую секунду прямо из инвентаря
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player user = event.player;
         if (user == null || event.phase != TickEvent.Phase.START) return;
 
+        // Потиковый сброс задержек на предметы в руке (Опыт, Зелья, Перлы, Лук)
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack stack = user.getItemInHand(hand);
+            if (!stack.isEmpty() && (stack.getItem() instanceof ExperienceBottleItem || 
+                stack.getItem() instanceof ThrowablePotionItem || 
+                stack.getItem() instanceof EnderpearlItem || 
+                stack.getItem() instanceof BowItem)) {
+                user.getCooldowns().removeCooldown(stack.getItem());
+            }
+        }
+
+        // Автоочистка плохих эффектов
         if (user.hasEffect(MobEffects.BLINDNESS)) user.removeEffect(MobEffects.BLINDNESS);
         if (user.hasEffect(MobEffects.DARKNESS)) user.removeEffect(MobEffects.DARKNESS);
         if (user.hasEffect(MobEffects.CONFUSION)) user.removeEffect(MobEffects.CONFUSION);
 
+        // Алерт на летящий рядом чужой жемчуг энда
         if (!user.level().isClientSide()) {
             user.level().getEntitiesOfClass(ThrownEnderpearl.class, user.getBoundingBox().inflate(30.0)).forEach(pearl -> {
                 if (pearl.getOwner() != user && pearl.tickCount == 1) {
@@ -75,6 +62,7 @@ public class FastXPHudHandler {
                 }
             });
 
+            // Сканирование прочности брони врагов в радиусе 12 блоков
             user.level().getEntitiesOfClass(Player.class, user.getBoundingBox().inflate(12.0)).forEach(enemy -> {
                 if (enemy != user && enemy.tickCount % 100 == 0) {
                     enemy.getArmorSlots().forEach(armor -> {
@@ -89,6 +77,29 @@ public class FastXPHudHandler {
                         }
                     });
                 }
+            });
+        }
+    }
+
+    // Буст скорости полёта снарядов при клике на Shift
+    @SubscribeEvent
+    public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
+        Player user = event.getEntity();
+        if (user == null || user.level().isClientSide() || !user.isShiftKeyDown()) return;
+
+        ItemStack stack = event.getItemStack();
+        if (stack.getItem() instanceof ExperienceBottleItem || 
+            stack.getItem() instanceof ThrowablePotionItem || 
+            stack.getItem() instanceof EnderpearlItem) {
+            
+            user.level().getEntitiesOfClass(ThrownExperienceBottle.class, user.getBoundingBox().inflate(2.0)).forEach(bottle -> {
+                if (bottle.getOwner() == user) bottle.setDeltaMovement(bottle.getDeltaMovement().scale(3.0));
+            });
+            user.level().getEntitiesOfClass(ThrownPotion.class, user.getBoundingBox().inflate(2.0)).forEach(potion -> {
+                if (potion.getOwner() == user) potion.setDeltaMovement(potion.getDeltaMovement().scale(3.0));
+            });
+            user.level().getEntitiesOfClass(ThrownEnderpearl.class, user.getBoundingBox().inflate(2.0)).forEach(pearl -> {
+                if (pearl.getOwner() == user) pearl.setDeltaMovement(pearl.getDeltaMovement().scale(3.0));
             });
         }
     }
@@ -200,10 +211,10 @@ public class FastXPHudHandler {
         }
     }
 
-    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
+    // ИСПРАВЛЕНО: Полное скрытие ванильных иконок по официальному ID оверлея Forge 1.20.4
     @SubscribeEvent
     public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
-        if (event.getOverlay().id().toString().contains("potion_effects")) {
+        if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_EFFECTS.id())) {
             event.setCanceled(true);
         }
     }
