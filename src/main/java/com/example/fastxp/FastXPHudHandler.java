@@ -106,7 +106,8 @@ public class FastXPHudHandler {
                     
                     mc.player.getCooldowns().removeCooldown(stack.getItem());
                     // Принудительно заставляем лаунчер прожимать ПКМ каждый тик
-                    mc.startUseItem();
+                    mc.rightClickDelayTimer = 0; // Сбрасываем внутренний таймер задержки клика в ноль
+
                 }
             }
         }
