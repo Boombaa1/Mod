@@ -14,7 +14,6 @@ import net.minecraft.world.entity.projectile.ThrownExperienceBottle;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.*;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
@@ -29,14 +28,18 @@ import java.util.Collection;
 @Mod.EventBusSubscriber(modid = "fastxp", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class FastXPHudHandler {
 
-    // 1. ИСПРАВЛЕНО: Бесконечный сброс кулдауна каждую секунду прямо из инвентаря
+    // ОПТИМИЗАЦИЯ: Кэшируем переменные, чтобы не грузить процессор каждую миллисекунду
+    private static int cachedTotems = 0;
+    private static int cachedGapples = 0;
+
+    // Бесконечный сброс кулдауна и автоочистка эффектов
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player user = event.player;
         if (user == null || event.phase != TickEvent.Phase.START) return;
 
-        // Потиковый сброс задержек на предметы в руке (Опыт, Зелья, Перлы, Лук)
-        for (InteractionHand hand : InteractionHand.values()) {
+        // Потиковый сброс кулдаунов в руке
+        for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
             ItemStack stack = user.getItemInHand(hand);
             if (!stack.isEmpty() && (stack.getItem() instanceof ExperienceBottleItem || 
                 stack.getItem() instanceof ThrowablePotionItem || 
@@ -51,8 +54,8 @@ public class FastXPHudHandler {
         if (user.hasEffect(MobEffects.DARKNESS)) user.removeEffect(MobEffects.DARKNESS);
         if (user.hasEffect(MobEffects.CONFUSION)) user.removeEffect(MobEffects.CONFUSION);
 
-        // Алерт на летящий рядом чужой жемчуг энда
         if (!user.level().isClientSide()) {
+            // Алерт на перлы
             user.level().getEntitiesOfClass(ThrownEnderpearl.class, user.getBoundingBox().inflate(30.0)).forEach(pearl -> {
                 if (pearl.getOwner() != user && pearl.tickCount == 1) {
                     double distance = Math.sqrt(pearl.distanceToSqr(user));
@@ -62,26 +65,28 @@ public class FastXPHudHandler {
                 }
             });
 
-            // Сканирование прочности брони врагов в радиусе 12 блоков
-            user.level().getEntitiesOfClass(Player.class, user.getBoundingBox().inflate(12.0)).forEach(enemy -> {
-                if (enemy != user && enemy.tickCount % 100 == 0) {
-                    enemy.getArmorSlots().forEach(armor -> {
-                        if (!armor.isEmpty() && armor.isDamageableItem()) {
-                            int max = armor.getMaxDamage();
-                            int current = max - armor.getDamageValue();
-                            if (((float)current / max) <= 0.1f) {
-                                user.sendSystemMessage(Component.literal(
-                                    "§8[ §dMod §8] §fУ игрока §6" + enemy.getGameProfile().getName() + " §cпочти сломан предмет: " + armor.getHoverName().getString()
-                                ));
+            // ОПТИМИЗАЦИЯ: Сканируем броню врагов строго раз в 5 секунд (100 тиков)
+            if (user.tickCount % 100 == 0) {
+                user.level().getEntitiesOfClass(Player.class, user.getBoundingBox().inflate(12.0)).forEach(enemy -> {
+                    if (enemy != user) {
+                        enemy.getArmorSlots().forEach(armor -> {
+                            if (!armor.isEmpty() && armor.isDamageableItem()) {
+                                int max = armor.getMaxDamage();
+                                int current = max - armor.getDamageValue();
+                                if (((float)current / max) <= 0.1f) {
+                                    user.sendSystemMessage(Component.literal(
+                                        "§8[ §dMod §8] §fУ игрока §6" + enemy.getGameProfile().getName() + " §cпочти сломан предмет: " + armor.getHoverName().getString()
+                                    ));
+                                }
                             }
-                        }
-                    });
-                }
-            });
+                        });
+                    }
+                });
+            }
         }
     }
 
-    // Буст скорости полёта снарядов при клике на Shift
+    // Буст скорости полёта предметов на Shift
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
         Player user = event.getEntity();
@@ -130,13 +135,13 @@ public class FastXPHudHandler {
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
 
-        // Предупреждение Safe Totem при низком здоровье
+        // Pre-Warning Safe Totem
         if (mc.player.getHealth() <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
 
-        // Индикаторы брони справа от инвентаря (Шлем сверху, ботинки снизу)
+        // Индикаторы брони справа от инвентаря
         EquipmentSlot[] slots = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
         int armorY = height - 55; 
         int armorX = width / 2 + 105; 
@@ -161,13 +166,17 @@ public class FastXPHudHandler {
             armorY -= 18; 
         }
 
-        // Счетчики тотемов и яблок в руке/инвентаре
-        int totemCount = 0;
-        int gappleCount = 0;
-        for (int i = 0; i < mc.player.getInventory().getContainerSize(); i++) {
-            ItemStack item = mc.player.getInventory().getItem(i);
-            if (item.is(Items.TOTEM_OF_UNDYING)) totemCount += item.getCount();
-            if (item.is(Items.GOLDEN_APPLE) || item.is(Items.ENCHANTED_GOLDEN_APPLE)) gappleCount += item.getCount();
+        // ОПТИМИЗАЦИЯ: Считаем тотемы и яблоки не каждый кадр рендеринга, а всего 5 раз в секунду (каждые 4 тика)
+        if (mc.player.tickCount % 4 == 0) {
+            int currentTotems = 0;
+            int currentGapples = 0;
+            for (int i = 0; i < mc.player.getInventory().getContainerSize(); i++) {
+                ItemStack item = mc.player.getInventory().getItem(i);
+                if (item.is(Items.TOTEM_OF_UNDYING)) currentTotems += item.getCount();
+                if (item.is(Items.GOLDEN_APPLE) || item.is(Items.ENCHANTED_GOLDEN_APPLE)) currentGapples += item.getCount();
+            }
+            cachedTotems = currentTotems;
+            cachedGapples = currentGapples;
         }
 
         int pvpItemsX = width / 2 + 235; 
@@ -176,14 +185,14 @@ public class FastXPHudHandler {
         guiGraphics.fill(pvpItemsX - 2, pvpItemsY - 2, pvpItemsX + 45, pvpItemsY + 18, 0xAA000000);
         guiGraphics.renderOutline(pvpItemsX - 2, pvpItemsY - 2, 47, 20, 0xAA555555);
         guiGraphics.renderItem(new ItemStack(Items.TOTEM_OF_UNDYING), pvpItemsX, pvpItemsY);
-        guiGraphics.drawString(mc.font, "x" + totemCount, pvpItemsX + 18, pvpItemsY + 4, totemCount > 0 ? 0xFFFFFF00 : 0x55FFFFFF, true);
+        guiGraphics.drawString(mc.font, "x" + cachedTotems, pvpItemsX + 18, pvpItemsY + 4, cachedTotems > 0 ? 0xFFFFFF00 : 0x55FFFFFF, true);
         
         pvpItemsY -= 22;
 
         guiGraphics.fill(pvpItemsX - 2, pvpItemsY - 2, pvpItemsX + 45, pvpItemsY + 18, 0xAA000000);
         guiGraphics.renderOutline(pvpItemsX - 2, pvpItemsY - 2, 47, 20, 0xAA555555);
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
-        guiGraphics.drawString(mc.font, "x" + gappleCount, pvpItemsX + 18, pvpItemsY + 4, gappleCount > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
+        guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
         // Кастомное меню эффектов зелий в правой части экрана (С иконками!)
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
@@ -211,7 +220,7 @@ public class FastXPHudHandler {
         }
     }
 
-    // ИСПРАВЛЕНО: Полное скрытие ванильных иконок по официальному ID оверлея Forge 1.20.4
+    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
     @SubscribeEvent
     public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
         if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_EFFECTS.id())) {
