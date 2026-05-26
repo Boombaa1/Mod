@@ -34,44 +34,26 @@ public class FastXPHudHandler {
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
 
-    // ОПТИМИЗАЦИЯ: ОТКЛЮЧАЕМ РЕНДЕР ИГРОКОВ И МОБОВ ЗА СПИНОЙ (ФПС БУСТ)
+    // Оптимизация: Отключаем рендер игроков и мобов за спиной
     @SubscribeEvent
     public static void onRenderLivingPre(RenderLivingEvent.Pre<?, ?> event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || event.getEntity() == mc.player) return;
 
         LivingEntity entity = event.getEntity();
-        
-        // Получаем вектор взгляда вашей камеры
         Vec3 lookVec = mc.player.getViewVector(1.0F);
-        
-        // Получаем направление от вас до энтити
         Vec3 targetVec = entity.position().subtract(mc.player.position()).normalize();
         
-        // Считаем скалярное произведение векторов
-        double dotProduct = lookVec.dot(targetVec);
-        
-        // Если значение меньше 0 — энтити гарантированно находится сзади вас
-        if (dotProduct < -0.1) {
-            event.setCanceled(true); // Отменяем рендеринг этой модели
+        if (lookVec.dot(targetVec) < -0.1) {
+            event.setCanceled(true);
         }
     }
 
-    // Бесконечный сброс кулдауна и автоочистка эффектов
+    // Проверка эффектов, алерты и сканирование брони врагов
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player user = event.player;
         if (user == null || event.phase != TickEvent.Phase.START) return;
-
-        for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
-            ItemStack stack = user.getItemInHand(hand);
-            if (!stack.isEmpty() && (stack.getItem() instanceof ExperienceBottleItem || 
-                stack.getItem() instanceof ThrowablePotionItem || 
-                stack.getItem() instanceof EnderpearlItem || 
-                stack.getItem() instanceof BowItem)) {
-                user.getCooldowns().removeCooldown(stack.getItem());
-            }
-        }
 
         if (user.hasEffect(MobEffects.BLINDNESS)) user.removeEffect(MobEffects.BLINDNESS);
         if (user.hasEffect(MobEffects.DARKNESS)) user.removeEffect(MobEffects.DARKNESS);
@@ -106,7 +88,30 @@ public class FastXPHudHandler {
             }
         }
     }
-    // Буст скорости полёта предметов на Shift
+    // Буст скорости полёта предметов на Shift и пулемётный сброс таймера кликов
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        // Фикс пулемёта: если зажат ПКМ и в руке опыт/зелья/перлы — зануляем задержку клика мыши
+        if (mc.options.keyUse.isDown()) {
+            for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
+                ItemStack stack = mc.player.getItemInHand(hand);
+                if (!stack.isEmpty() && (stack.getItem() instanceof ExperienceBottleItem || 
+                    stack.getItem() instanceof ThrowablePotionItem || 
+                    stack.getItem() instanceof EnderpearlItem || 
+                    stack.getItem() instanceof BowItem)) {
+                    
+                    // Обнуляем внутренний таймер задержки кликов в лаунчере (rightClickDelayTimer) для 1.20.4
+                    mc.missTime = 0;
+                    mc.player.getCooldowns().removeCooldown(stack.getItem());
+                }
+            }
+        }
+    }
+
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
         Player user = event.getEntity();
@@ -215,7 +220,7 @@ public class FastXPHudHandler {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // Кастомное меню эффектов зелий в правой части экрана (С иконками!)
+        // Кастомное меню эффектов зелий в правой части экрана
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
@@ -241,10 +246,10 @@ public class FastXPHudHandler {
     }
 
     // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
-   @SubscribeEvent
-public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
-    if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_ICONS.id())) {
-        event.setCanceled(true);
+    @SubscribeEvent
+    public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
+        if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_ICONS.id())) {
+            event.setCanceled(true);
+        }
     }
- }
 }
