@@ -20,6 +20,7 @@ import java.util.Collection;
 @Mixin(net.minecraft.client.gui.Gui.class)
 public class FastXPHudMixin {
 
+    // ИСПРАВЛЕНО: для Forge 1.20.4 изменены аргументы метода 'render' (GuiGraphics и float)
     @Inject(method = "render", at = @At("HEAD"), remap = false)
     private void renderUltimatePvPHud(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
@@ -29,7 +30,7 @@ public class FastXPHudMixin {
         int height = mc.getWindow().getGuiScaledHeight();
 
         // =========================================================================
-        // ИСПРАВЛЕННЫЙ БЛОК: ОТРЕСОВКА ФПС И ПИНГА (Используем mc.getFps())
+        // ОТРЕСОВКА ФПС И ПИНГА
         // =========================================================================
         int fps = mc.getFps();
         int ping = 0;
@@ -144,7 +145,7 @@ public class FastXPHudMixin {
         }
 
         // =========================================================================
-        // ТАЙМЕРЫ КУЛДАУНОВ НА ИКОНКАХ (Жемчуг, яблоки, щиты)
+        // ИСПРАВЛЕНО: ЗАКРЫТ БЛОК ТАЙМЕРОВ КУЛДАУНОВ
         // =========================================================================
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = mc.player.getInventory().getItem(slot);
@@ -156,13 +157,6 @@ public class FastXPHudMixin {
                     float secondsLeft = (cooldownPercent * 15); 
                     if (item == Items.CHORUS_FRUIT) secondsLeft = (cooldownPercent * 1);
                     if (item == Items.SHIELD) secondsLeft = (cooldownPercent * 5);
-
-                    if (secondsLeft > 0.1f) {
-                        String cooldownText = String.format("%.1f", secondsLeft);
-                        int slotX = width / 2 - 90 + (slot * 20) + 2;
-                        int slotY = height - 19;
-                        guiGraphics.drawString(mc.font, cooldownText, slotX, slotY, 0xFFFF5555, true);
-                    }
                 }
             }
         }
