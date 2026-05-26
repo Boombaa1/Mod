@@ -8,15 +8,18 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.entity.projectile.ThrownExperienceBottle;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.*;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
@@ -28,9 +31,31 @@ import java.util.Collection;
 @Mod.EventBusSubscriber(modid = "fastxp", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class FastXPHudHandler {
 
-    // ОПТИМИЗАЦИЯ: Кэшируем переменные, чтобы не грузить процессор каждую миллисекунду
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
+
+    // ОПТИМИЗАЦИЯ: ОТКЛЮЧАЕМ РЕНДЕР ИГРОКОВ И МОБОВ ЗА СПИНОЙ (ФПС БУСТ)
+    @SubscribeEvent
+    public static void onRenderLivingPre(RenderLivingEvent.Pre<?, ?> event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || event.getEntity() == mc.player) return;
+
+        LivingEntity entity = event.getEntity();
+        
+        // Получаем вектор взгляда вашей камеры
+        Vec3 lookVec = mc.player.getViewVector(1.0F);
+        
+        // Получаем направление от вас до энтити
+        Vec3 targetVec = entity.position().subtract(mc.player.position()).normalize();
+        
+        // Считаем скалярное произведение векторов
+        double dotProduct = lookVec.dot(targetVec);
+        
+        // Если значение меньше 0 — энтити гарантированно находится сзади вас
+        if (dotProduct < -0.1) {
+            event.setCanceled(true); // Отменяем рендеринг этой модели
+        }
+    }
 
     // Бесконечный сброс кулдауна и автоочистка эффектов
     @SubscribeEvent
@@ -38,7 +63,6 @@ public class FastXPHudHandler {
         Player user = event.player;
         if (user == null || event.phase != TickEvent.Phase.START) return;
 
-        // Потиковый сброс кулдаунов в руке
         for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
             ItemStack stack = user.getItemInHand(hand);
             if (!stack.isEmpty() && (stack.getItem() instanceof ExperienceBottleItem || 
@@ -49,13 +73,11 @@ public class FastXPHudHandler {
             }
         }
 
-        // Автоочистка плохих эффектов
         if (user.hasEffect(MobEffects.BLINDNESS)) user.removeEffect(MobEffects.BLINDNESS);
         if (user.hasEffect(MobEffects.DARKNESS)) user.removeEffect(MobEffects.DARKNESS);
         if (user.hasEffect(MobEffects.CONFUSION)) user.removeEffect(MobEffects.CONFUSION);
 
         if (!user.level().isClientSide()) {
-            // Алерт на перлы
             user.level().getEntitiesOfClass(ThrownEnderpearl.class, user.getBoundingBox().inflate(30.0)).forEach(pearl -> {
                 if (pearl.getOwner() != user && pearl.tickCount == 1) {
                     double distance = Math.sqrt(pearl.distanceToSqr(user));
@@ -65,7 +87,6 @@ public class FastXPHudHandler {
                 }
             });
 
-            // ОПТИМИЗАЦИЯ: Сканируем броню врагов строго раз в 5 секунд (100 тиков)
             if (user.tickCount % 100 == 0) {
                 user.level().getEntitiesOfClass(Player.class, user.getBoundingBox().inflate(12.0)).forEach(enemy -> {
                     if (enemy != user) {
@@ -85,7 +106,6 @@ public class FastXPHudHandler {
             }
         }
     }
-
     // Буст скорости полёта предметов на Shift
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
@@ -108,6 +128,7 @@ public class FastXPHudHandler {
             });
         }
     }
+
     // 3. ОТРИСОВКА ВСЕГО КАСТОМНОГО PvP-ИНТЕРФЕЙСА (HUD)
     @SubscribeEvent
     public static void onRenderHud(CustomizeGuiOverlayEvent.DebugText event) {
@@ -166,7 +187,7 @@ public class FastXPHudHandler {
             armorY -= 18; 
         }
 
-        // ОПТИМИЗАЦИЯ: Считаем тотемы и яблоки не каждый кадр рендеринга, а всего 5 раз в секунду (каждые 4 тика)
+        // Считаем тотемы и яблоки 5 раз в секунду
         if (mc.player.tickCount % 4 == 0) {
             int currentTotems = 0;
             int currentGapples = 0;
@@ -203,7 +224,6 @@ public class FastXPHudHandler {
             guiGraphics.fill(effectX, effectY, width - 10, effectY + 22, 0xAA000000);
             guiGraphics.renderOutline(effectX, effectY, 115, 22, 0xAA555555);
 
-            // Отрисовка ванильной цветной иконки зелья на плашке
             TextureAtlasSprite sprite = mc.getMobEffectTextures().get(effect.getEffect());
             if (sprite != null) {
                 guiGraphics.blit(effectX + 4, effectY + 4, 0, 14, 14, sprite);
