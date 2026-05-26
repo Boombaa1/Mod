@@ -4,9 +4,7 @@
   "package": "com.example.fastxp.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "FastXPMixin",
-    "ElytraRollMixin",
-    "NoHurtCamMixin"
+    "FastXPMixin"
   ],
   "injectors": {
     "defaultRequire": 1
