@@ -1,4 +1,3 @@
-// СТРОКА 1: НАЧАЛО ФАЙЛА (Пакет и все импорты)
 package com.example.fastxp;
 
 import net.minecraft.client.Minecraft;
@@ -6,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -35,22 +35,49 @@ public class FastXPHudHandler {
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
 
-    // СТРОКА 39: СЕРЕДИНА ЧАСТИ 1 (Оптимизация рендера за спиной)
+    // ОПТИМИЗАЦИЯ: Отключаем рендер игроков и мобов за спиной
     @SubscribeEvent
-    public static void onRenderLivingPre(RenderLivingEvent.Pre<?, ?> event) {
+    public static void onFrustumCulling(RenderLivingEvent.Pre<?, ?> event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || event.getEntity() == mc.player) return;
-
-        LivingEntity entity = event.getEntity();
-        Vec3 lookVec = mc.player.getViewVector(1.0F);
-        Vec3 targetVec = entity.position().subtract(mc.player.position()).normalize();
-        
-        if (lookVec.dot(targetVec) < -0.1) {
-            event.setCanceled(true);
-        }
+        Vec3 look = mc.player.getViewVector(1.0F);
+        Vec3 target = event.getEntity().position().subtract(mc.player.position()).normalize();
+        if (look.dot(target) < -0.1) event.setCanceled(true);
     }
 
-    // СТРОКА 55: КОНЕЦ ЧАСТИ 1 (Проверка дебаффов, алерты на перлы и броню)
+    // УЛЬТРА-ПУЛЕМЁТ: Работает каждый кадр (Render Tick), а не раз в тик игры!
+    @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.gameMode == null) return;
+
+        // Если зажат правый клик
+        if (mc.options.keyUse.isDown()) {
+            ItemStack mainStack = mc.player.getMainHandItem();
+            ItemStack offStack = mc.player.getOffhandItem();
+            
+            // Проверяем, опыт ли в руках
+            boolean hasXp = mainStack.getItem() instanceof ExperienceBottleItem || offStack.getItem() instanceof ExperienceBottleItem;
+            boolean hasPotion = mainStack.getItem() instanceof ThrowablePotionItem || offStack.getItem() instanceof ThrowablePotionItem;
+            
+            if (hasXp || hasPotion) {
+                // Стираем задержки клика Майнкрафта мгновенно в текущем кадре
+                mc.player.getCooldowns().removeCooldown(mainStack.getItem());
+                mc.player.getCooldowns().removeCooldown(offStack.getItem());
+                
+                // Форсируем отправку пакета использования на сервер без ожидания задержек
+                for (InteractionHand hand : InteractionHand.values()) {
+                    ItemStack itemInHand = mc.player.getItemInHand(hand);
+                    if (itemInHand.getItem() instanceof ExperienceBottleItem || itemInHand.getItem() instanceof ThrowablePotionItem) {
+                        mc.gameMode.useItem(mc.player, hand);
+                        mc.player.swing(hand);
+                    }
+                }
+            }
+        }
+    }
+    // 2. ЕЖЕТИКОВАЯ ОЧИСТКА ОТ ЭФФЕКТОВ, АЛЕРТЫ НА ПЕРЛЫ И ПОЛОМКУ БРОНИ ВРАГОВ
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player user = event.player;
@@ -89,29 +116,8 @@ public class FastXPHudHandler {
             }
         }
     }
-// СТРОКА 100: КОНЕЦ ПЕРВОЙ ЧАСТИ ФАЙЛА
-    // СТРОКА 101: НАЧАЛО ВТОРОЙ ЧАСТИ (Сброс кулдауна при зажатии мыши ПКМ)
-    @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
 
-        if (mc.options.keyUse.isDown()) {
-            for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
-                ItemStack stack = mc.player.getItemInHand(hand);
-                if (!stack.isEmpty() && (stack.getItem() instanceof ExperienceBottleItem || 
-                    stack.getItem() instanceof ThrowablePotionItem || 
-                    stack.getItem() instanceof EnderpearlItem || 
-                    stack.getItem() instanceof BowItem)) {
-                    
-                    mc.player.getCooldowns().removeCooldown(stack.getItem());
-                }
-            }
-        }
-    }
-
-    // СТРОКА 123: СЕРЕДИНА ЧАСТИ 2 (Ускорение предметов на Shift)
+    // Буст скорости полёта предметов на Shift
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
         Player user = event.getEntity();
@@ -134,7 +140,7 @@ public class FastXPHudHandler {
         }
     }
 
-    // СТРОКА 146: ОТРЕСОВКА PvP-ИНТЕРФЕЙСА (HUD, Броня, Тотемы, Зелья)
+    // 3. ОТРИСОВКА ВСЕГО КАСТОМНОГО PvP-ИНТЕРФЕЙСА (HUD)
     @SubscribeEvent
     public static void onRenderHud(CustomizeGuiOverlayEvent.DebugText event) {
         Minecraft mc = Minecraft.getInstance();
@@ -144,6 +150,7 @@ public class FastXPHudHandler {
         int width = mc.getWindow().getGuiScaledWidth();
         int height = mc.getWindow().getGuiScaledHeight();
 
+        // FPS и Пинг по центру экрана
         int fps = mc.getFps();
         int ping = 0;
         ClientPacketListener connection = mc.getConnection();
@@ -160,11 +167,13 @@ public class FastXPHudHandler {
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
 
+        // Pre-Warning Safe Totem
         if (mc.player.getHealth() <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
 
+        // Индикаторы брони справа от инвентаря
         EquipmentSlot[] slots = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
         int armorY = height - 55; 
         int armorX = width / 2 + 105; 
@@ -189,6 +198,7 @@ public class FastXPHudHandler {
             armorY -= 18; 
         }
 
+        // Считаем тотемы и яблоки 5 раз в секунду
         if (mc.player.tickCount % 4 == 0) {
             int currentTotems = 0;
             int currentGapples = 0;
@@ -216,6 +226,7 @@ public class FastXPHudHandler {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
+        // Кастомное меню эффектов зелий в правой части экрана (С иконками!)
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
@@ -240,7 +251,7 @@ public class FastXPHudHandler {
         }
     }
 
-    // СТРОКА 242: ПРЕДПОСЛЕДНИЙ БЛОК (Скрытие ванильных иконок)
+    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ДУБЛИРУЮЩИЙСЯ СТАНДАРТНЫЙ ИНТЕРФЕЙС ЭФФЕКТОВ
     @SubscribeEvent
     public static void onRenderEffectsPre(RenderGuiOverlayEvent.Pre event) {
         if (event.getOverlay().id().equals(VanillaGuiOverlay.POTION_ICONS.id())) {
@@ -248,4 +259,3 @@ public class FastXPHudHandler {
         }
     }
 }
-// СТРОКА 251: САМЫЙ КОНЕЦ ФАЙЛА
