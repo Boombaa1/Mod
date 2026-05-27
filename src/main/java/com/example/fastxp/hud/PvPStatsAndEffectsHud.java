@@ -22,59 +22,39 @@ import java.util.Collection;
 @Mod.EventBusSubscriber(modid = "fastxp", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class PvPStatsAndEffectsHud {
 
-    // =========================================================================
-    // 1. УМЕНЬШЕНИЕ ЩИТА В РУКАХ (Small Shield)
-    // =========================================================================
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        // Ищем щит в левой или правой руке
         if (event.getItemStack().is(Items.SHIELD)) {
             PoseStack poseStack = event.getPoseStack();
             poseStack.pushPose();
-
-            // Если щит в левой руке
             if (event.getHand() == InteractionHand.OFF_HAND) {
-                poseStack.translate(-0.15D, -0.25D, 0.1D); // Сдвигаем чуть влево и вниз
-                poseStack.scale(0.65F, 0.65F, 0.65F);     // Уменьшаем размер щита до 65% (на 35% меньше)
-            } 
-            // Если щит в главной руке
-            else {
+                poseStack.translate(-0.15D, -0.25D, 0.1D);
+                poseStack.scale(0.65F, 0.65F, 0.65F);
+            } else {
                 poseStack.translate(0.15D, -0.25D, 0.1D);
                 poseStack.scale(0.65F, 0.65F, 0.65F);
             }
-            // Заставляем Forge применить новые масштаб и позицию матрицы
             poseStack.popPose();
         }
     }
 
-    // =========================================================================
-    // 2. НИЗКИЙ ОГОНЬ НА ЭКРАНЕ (Low Fire)
-    // =========================================================================
     @SubscribeEvent
     public static void onRenderFireOverlay(RenderBlockScreenEffectEvent event) {
-        // Проверяем, что эффект на экране — это именно горение (FIRE)
         if (event.getOverlayType() == RenderBlockScreenEffectEvent.OverlayType.FIRE) {
             PoseStack poseStack = event.getPoseStack();
-            // Опускаем матрицу рендеринга текстуры огня вниз на 0.45 единиц
-            // Теперь пламя будет аккуратно гореть в самом низу экрана, не закрывая прицел
             poseStack.translate(0.0D, -0.45D, 0.0D);
         }
     }
 
-    // =========================================================================
-    // 3. ОСНОВНОЙ РЕНДЕР ТВОЕГО PvP HUD
-    // =========================================================================
     public static void render(GuiGraphics guiGraphics, Minecraft mc, int width, int height, int cachedTotems, int cachedGapples) {
         
-        // МГНОВЕННЫЙ FULLBRIGHT
         if (mc.options.gamma().get() < 10.0) {
             mc.options.gamma().set(10.0);
         }
 
-        // СМЕЩЕНИЕ ПАНЕЛИ ПРИ ПОЯВЛЕНИИ БОССБАРА (HolyWorld)
         int hudY = 6;
         if (mc.gui.getBossOverlay().shouldPlayMusic() || !mc.gui.getBossOverlay().getEvents().isEmpty()) {
             hudY = 30;
@@ -95,8 +75,16 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
 
-        // Pre-Warning Safe Totem
-        if (mc.player.getHealth() <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
+        // =========================================================================
+        // ИСПРАВЛЕННЫЙ БЛОК: SAFE TOTEM (Пишет ТОЛЬКО если есть тотемы в инвентаре)
+        // =========================================================================
+        float health = mc.player.getHealth();
+        // Условие: здоровья мало, в руках тотема нет, НО в инвентаре (в кэше) лежит больше 0 тотемов
+        if (health <= 6.0f && 
+            !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && 
+            !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING) && 
+            cachedTotems > 0) {
+            
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
@@ -116,7 +104,7 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // Эффекты зелий с ИКОНКАМИ
+        // Эффекты зелий
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
