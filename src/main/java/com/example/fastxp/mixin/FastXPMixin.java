@@ -1,32 +1,29 @@
-// СТРОКА 1: НАЧАЛО ФАЙЛА (Импорты и пакет)
 package com.example.fastxp.mixin;
 
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ExperienceBottleItem;
-import net.minecraft.world.item.ThrowablePotionItem;
-import net.minecraft.world.item.EnderpearlItem;
-import net.minecraft.world.item.BowItem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Player.class)
+@Mixin(Minecraft.class)
 public class FastXPMixin {
 
-    // СТРОКА 18: СЕРЕДИНА ФАЙЛА (Логика пулемёта опыта)
-    @Inject(method = "isUsingItem", at = @At("HEAD"), cancellable = true)
-    private void removeServerUseDelay(CallbackInfoReturnable<Boolean> cir) {
-        Player player = (Player) (Object) this;
-        ItemStack mainHand = player.getMainHandItem();
-        ItemStack offHand = player.getOffhandItem();
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void fastXP(CallbackInfo ci) {
 
-        if (mainHand.getItem() instanceof ExperienceBottleItem || mainHand.getItem() instanceof ThrowablePotionItem || mainHand.getItem() instanceof EnderpearlItem || mainHand.getItem() instanceof BowItem ||
-            offHand.getItem() instanceof ExperienceBottleItem || offHand.getItem() instanceof ThrowablePotionItem || offHand.getItem() instanceof EnderpearlItem || offHand.getItem() instanceof BowItem) {
-            
-            cir.setReturnValue(false);
+        Minecraft mc = Minecraft.getInstance();
+
+        LocalPlayer player = mc.player;
+
+        if (player == null) return;
+
+        // FIX:
+        // теперь работает только для XP
+        if (player.getMainHandItem().getItem() instanceof ExperienceBottleItem) {
+            mc.rightClickDelay = 0;
         }
     }
 }
-// СТРОКА 33: КОНЕЦ ФАЙЛА
