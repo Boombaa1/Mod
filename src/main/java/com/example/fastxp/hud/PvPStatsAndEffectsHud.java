@@ -56,7 +56,8 @@ public class PvPStatsAndEffectsHud {
         }
 
         int hudY = 6;
-        if (mc.gui.getBossOverlay().shouldPlayMusic() || !mc.gui.getBossOverlay().getEvents().isEmpty()) {
+        // ИСПРАВЛЕНО: Безопасный способ узнать, висит ли PvP-боссбар на HolyWorld в 1.20.4
+        if (mc.gui.getBossOverlay().shouldPlayMusic() || mc.gui.getBossOverlay().shouldCreateWorldFog()) {
             hudY = 30;
         }
 
@@ -75,21 +76,12 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
         guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
 
-        // =========================================================================
-        // ИСПРАВЛЕННЫЙ БЛОК: SAFE TOTEM (Пишет ТОЛЬКО если есть тотемы в инвентаре)
-        // =========================================================================
         float health = mc.player.getHealth();
-        // Условие: здоровья мало, в руках тотема нет, НО в инвентаре (в кэше) лежит больше 0 тотемов
-        if (health <= 6.0f && 
-            !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && 
-            !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING) && 
-            cachedTotems > 0) {
-            
+        if (health <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING) && cachedTotems > 0) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
 
-        // Тотемы и яблоки
         int pvpItemsX = width / 2 + 235; 
         int pvpItemsY = height - 55;
 
@@ -104,7 +96,6 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // Эффекты зелий
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
@@ -128,12 +119,12 @@ public class PvPStatsAndEffectsHud {
             effectY += 26; 
         }
 
-        // Таймеры кулдаунов
         for (int slot = 0; slot < 9; slot++) {
             ItemStack s = mc.player.getInventory().getItem(slot);
             if (!s.isEmpty()) {
                 Item item = s.getItem();
-                float cd = mc.player.getCooldowns().getCooldownPercent(item, Minecraft.getInstance().getFrameTimeNS());
+                // ИСПРАВЛЕНО: Используем ванильный метод mc.getFrameTime() вместо getFrameTimeNS()
+                float cd = mc.player.getCooldowns().getCooldownPercent(item, mc.getFrameTime());
                 if (cd > 0.0f) {
                     float sec = cd * 15;
                     if (item == Items.CHORUS_FRUIT) sec = cd * 1;
