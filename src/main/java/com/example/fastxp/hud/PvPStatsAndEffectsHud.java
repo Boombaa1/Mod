@@ -9,11 +9,28 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Item;
+import net.minecraft.util.Mth;
 import java.util.Collection;
 
 public class PvPStatsAndEffectsHud {
     public static void render(GuiGraphics guiGraphics, Minecraft mc, int width, int height, int cachedTotems, int cachedGapples) {
-        // 1. FPS и Пинг по центру
+        
+        // =========================================================================
+        // МГНОВЕННЫЙ FULLBRIGHT (Яркое зрение без баффов)
+        // =========================================================================
+        if (mc.options.gamma().get() < 10.0) {
+            mc.options.gamma().set(10.0); // Выставляем яркость на максимум в обход ползунка настроек
+        }
+
+        // =========================================================================
+        // СМЕЩЕНИЕ ПАНЕЛИ ПРИ ПОЯВЛЕНИИ БОССБАРА (Combat Log на HolyWorld)
+        // =========================================================================
+        int hudY = 6;
+        // Проверяем, активен ли в данный момент хоть один BossBar на экране
+        if (mc.gui.getBossOverlay().shouldPlayMusic() || !mc.gui.getBossOverlay().getEvents().isEmpty()) {
+            hudY = 30; // Опускаем FPS и Пинг ниже полоски PvP-режима сервера
+        }
+
         int fps = mc.getFps();
         int ping = 0;
         ClientPacketListener connection = mc.getConnection();
@@ -24,17 +41,18 @@ public class PvPStatsAndEffectsHud {
 
         String hudText = "§a" + fps + " §fFPS  §7|  §b" + ping + " §fPing";
         int hudX = (width - mc.font.width(hudText)) / 2;
-        guiGraphics.fill(hudX - 6, 3, hudX + mc.font.width(hudText) + 6, 17, 0x99000000);
-        guiGraphics.renderOutline(hudX - 6, 3, mc.font.width(hudText) + 12, 14, 0x55555555);
-        guiGraphics.drawString(mc.font, hudText, hudX, 6, 0xFFFFFFFF, false);
 
-        // 2. Pre-Warning Safe Totem
+        guiGraphics.fill(hudX - 6, hudY - 3, hudX + mc.font.width(hudText) + 6, hudY + 11, 0x99000000);
+        guiGraphics.renderOutline(hudX - 6, hudY - 3, mc.font.width(hudText) + 12, 14, 0x55555555);
+        guiGraphics.drawString(mc.font, hudText, hudX, hudY, 0xFFFFFFFF, false);
+
+        // Pre-Warning Safe Totem
         if (mc.player.getHealth() <= 6.0f && !mc.player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) && !mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
             String warningText = "[!] ВОЗЬМИ ТОТЕМ [!]";
             guiGraphics.drawString(mc.font, warningText, (width - mc.font.width(warningText)) / 2, height - 68, 0xFFFF2222, true);
         }
 
-        // 3. Тотемы и яблоки из кэша
+        // Тотемы и яблоки
         int pvpItemsX = width / 2 + 235; 
         int pvpItemsY = height - 55;
 
@@ -42,7 +60,6 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderOutline(pvpItemsX - 2, pvpItemsY - 2, 47, 20, 0xAA555555);
         guiGraphics.renderItem(new ItemStack(Items.TOTEM_OF_UNDYING), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedTotems, pvpItemsX + 18, pvpItemsY + 4, cachedTotems > 0 ? 0xFFFFFF00 : 0x55FFFFFF, true);
-        
         pvpItemsY -= 22;
 
         guiGraphics.fill(pvpItemsX - 2, pvpItemsY - 2, pvpItemsX + 45, pvpItemsY + 18, 0xAA000000);
@@ -50,7 +67,7 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // 4. Эффекты зелий с ИКОНКАМИ
+        // Эффекты зелий
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
@@ -74,7 +91,7 @@ public class PvPStatsAndEffectsHud {
             effectY += 26; 
         }
 
-        // 5. Таймеры кулдаунов на иконках
+        // Таймеры кулдаунов
         for (int slot = 0; slot < 9; slot++) {
             ItemStack s = mc.player.getInventory().getItem(slot);
             if (!s.isEmpty()) {
