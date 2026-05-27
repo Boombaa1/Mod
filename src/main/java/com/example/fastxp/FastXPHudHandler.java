@@ -20,6 +20,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderLivingEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
@@ -31,6 +32,14 @@ public class FastXPHudHandler {
 
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
+
+    // ПОЛНОЕ ОТКЛЮЧЕНИЕ ТУМАНА (No Fog)
+    @SubscribeEvent
+    public static void onFogRender(ViewportEvent.RenderFog event) {
+        event.setNearPlaneDistance(10000.0F);
+        event.setFarPlaneDistance(20000.0F);
+        event.setCanceled(true);
+    }
 
     @SubscribeEvent
     public static void onFrustumCulling(RenderLivingEvent.Pre<?, ?> event) {
@@ -107,7 +116,6 @@ public class FastXPHudHandler {
                 });
             }
 
-            // ТВОЙ ОПТИМИЗИРОВАННЫЙ КЭШ ТОТЕМОВ И ЯБЛОК (5 раз в секунду)
             if (user.tickCount % 4 == 0) {
                 int currentTotems = 0;
                 int currentGapples = 0;
@@ -122,7 +130,6 @@ public class FastXPHudHandler {
         }
     }
 
-    // ТВОЙ БУСТ НА SHIFT ЧЕРЕЗ ФОРДЖ ЭВЕНТ
     @SubscribeEvent
     public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
         Player user = event.getEntity();
@@ -145,7 +152,6 @@ public class FastXPHudHandler {
         }
     }
 
-    // ЗАПУСК НАШИХ ТРЕХ ГРАФИЧЕСКИХ ФАЙЛОВ
     @SubscribeEvent
     public static void onRenderHud(CustomizeGuiOverlayEvent.DebugText event) {
         Minecraft mc = Minecraft.getInstance();
