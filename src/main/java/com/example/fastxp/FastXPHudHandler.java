@@ -33,7 +33,6 @@ public class FastXPHudHandler {
     private static int cachedTotems = 0;
     private static int cachedGapples = 0;
 
-    // ПОЛНОЕ ОТКЛЮЧЕНИЕ ТУМАНА (No Fog)
     @SubscribeEvent
     public static void onFogRender(ViewportEvent.RenderFog event) {
         event.setNearPlaneDistance(10000.0F);
@@ -93,7 +92,7 @@ public class FastXPHudHandler {
                 if (pearl.getOwner() != user && pearl.tickCount == 1) {
                     double distance = Math.sqrt(pearl.distanceToSqr(user));
                     user.sendSystemMessage(Component.literal(
-                        "§8[§5!§8] §cВнимание! Рядом брошен Эндер-Жемчуг! Дистанция: §e" + String.format("%.1f", distance) + "м"
+                        "§8[ §c⚔ §4§lRagePvP §c⚔ §8] §cВнимание! Рядом брошен Эндер-Жемчуг! Дистанция: §e" + String.format("%.1f", distance) + "м"
                     ));
                 }
             });
@@ -107,7 +106,7 @@ public class FastXPHudHandler {
                                 int current = max - armor.getDamageValue();
                                 if (((float)current / max) <= 0.1f) {
                                     user.sendSystemMessage(Component.literal(
-                                        "§8[ §dMod §8] §fУ игрока §6" + enemy.getGameProfile().getName() + " §cпочти сломан предмет: " + armor.getHoverName().getString()
+                                        "§8[ §c⚔ §4§lRagePvP §c⚔ §8] §fУ игрока §6" + enemy.getGameProfile().getName() + " §cпочти сломан предмет: " + armor.getHoverName().getString()
                                     ));
                                 }
                             }
