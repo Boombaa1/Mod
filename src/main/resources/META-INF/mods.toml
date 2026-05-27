@@ -5,8 +5,8 @@ license="MIT"
 [[mods]]
 modId="fastxp"
 version="1.0.0"
-displayName="Fast XP and Potions"
-description="Removes cooldown for experience bottles and potions on Forge."
+displayName="RagePvP"
+description="Ultimate PvP and XP utility pack for Anarchy servers."
 authors="Developer"
 
 [[dependencies.fastxp]]
