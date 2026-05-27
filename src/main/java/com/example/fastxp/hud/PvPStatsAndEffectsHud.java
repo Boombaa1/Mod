@@ -1,34 +1,83 @@
 package com.example.fastxp.hud;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Item;
 import net.minecraft.util.Mth;
+import net.minecraftforge.client.event.RenderHandEvent;
+import net.minecraftforge.client.event.RenderBlockScreenEffectEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
 import java.util.Collection;
 
+@Mod.EventBusSubscriber(modid = "fastxp", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class PvPStatsAndEffectsHud {
+
+    // =========================================================================
+    // 1. УМЕНЬШЕНИЕ ЩИТА В РУКАХ (Small Shield)
+    // =========================================================================
+    @SubscribeEvent
+    public static void onRenderHand(RenderHandEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        // Ищем щит в левой или правой руке
+        if (event.getItemStack().is(Items.SHIELD)) {
+            PoseStack poseStack = event.getPoseStack();
+            poseStack.pushPose();
+
+            // Если щит в левой руке
+            if (event.getHand() == InteractionHand.OFF_HAND) {
+                poseStack.translate(-0.15D, -0.25D, 0.1D); // Сдвигаем чуть влево и вниз
+                poseStack.scale(0.65F, 0.65F, 0.65F);     // Уменьшаем размер щита до 65% (на 35% меньше)
+            } 
+            // Если щит в главной руке
+            else {
+                poseStack.translate(0.15D, -0.25D, 0.1D);
+                poseStack.scale(0.65F, 0.65F, 0.65F);
+            }
+            // Заставляем Forge применить новые масштаб и позицию матрицы
+            poseStack.popPose();
+        }
+    }
+
+    // =========================================================================
+    // 2. НИЗКИЙ ОГОНЬ НА ЭКРАНЕ (Low Fire)
+    // =========================================================================
+    @SubscribeEvent
+    public static void onRenderFireOverlay(RenderBlockScreenEffectEvent event) {
+        // Проверяем, что эффект на экране — это именно горение (FIRE)
+        if (event.getOverlayType() == RenderBlockScreenEffectEvent.OverlayType.FIRE) {
+            PoseStack poseStack = event.getPoseStack();
+            // Опускаем матрицу рендеринга текстуры огня вниз на 0.45 единиц
+            // Теперь пламя будет аккуратно гореть в самом низу экрана, не закрывая прицел
+            poseStack.translate(0.0D, -0.45D, 0.0D);
+        }
+    }
+
+    // =========================================================================
+    // 3. ОСНОВНОЙ РЕНДЕР ТВОЕГО PvP HUD
+    // =========================================================================
     public static void render(GuiGraphics guiGraphics, Minecraft mc, int width, int height, int cachedTotems, int cachedGapples) {
         
-        // =========================================================================
-        // МГНОВЕННЫЙ FULLBRIGHT (Яркое зрение без баффов)
-        // =========================================================================
+        // МГНОВЕННЫЙ FULLBRIGHT
         if (mc.options.gamma().get() < 10.0) {
-            mc.options.gamma().set(10.0); // Выставляем яркость на максимум в обход ползунка настроек
+            mc.options.gamma().set(10.0);
         }
 
-        // =========================================================================
-        // СМЕЩЕНИЕ ПАНЕЛИ ПРИ ПОЯВЛЕНИИ БОССБАРА (Combat Log на HolyWorld)
-        // =========================================================================
+        // СМЕЩЕНИЕ ПАНЕЛИ ПРИ ПОЯВЛЕНИИ БОССБАРА (HolyWorld)
         int hudY = 6;
-        // Проверяем, активен ли в данный момент хоть один BossBar на экране
         if (mc.gui.getBossOverlay().shouldPlayMusic() || !mc.gui.getBossOverlay().getEvents().isEmpty()) {
-            hudY = 30; // Опускаем FPS и Пинг ниже полоски PvP-режима сервера
+            hudY = 30;
         }
 
         int fps = mc.getFps();
@@ -67,7 +116,7 @@ public class PvPStatsAndEffectsHud {
         guiGraphics.renderItem(new ItemStack(Items.GOLDEN_APPLE), pvpItemsX, pvpItemsY);
         guiGraphics.drawString(mc.font, "x" + cachedGapples, pvpItemsX + 18, pvpItemsY + 4, cachedGapples > 0 ? 0xFFFFAA00 : 0x55FFFFFF, true);
 
-        // Эффекты зелий
+        // Эффекты зелий с ИКОНКАМИ
         Collection<MobEffectInstance> effects = mc.player.getActiveEffects();
         int effectY = 10;
         int effectX = width - 125; 
