@@ -7,7 +7,6 @@
   ],
 
   "client": [
-    "ClientVisionMixin",
     "ElytraRollMixin",
     "FastXPMixin",
     "FastXPTotemMixin",
