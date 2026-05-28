@@ -3,31 +3,31 @@ package com.example.fastxp.mixin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
-@Mixin(Minecraft.class)
+@Mod.EventBusSubscriber(
+        modid = "fastxp",
+        value = Dist.CLIENT
+)
 public class ClientVisionMixin {
 
-    @Unique
-    private int fastxp$timer = 0;
+    private static int timer = 0;
 
-    @Inject(method = "runTick", at = @At("HEAD"))
-    private void applyServerSafeCheats(boolean pause, CallbackInfo ci) {
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
 
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.player == null) return;
 
-        fastxp$timer++;
+        timer++;
 
-        // обновляем эффект раз в 5 секунд
-        if (fastxp$timer >= 100) {
+        if (timer >= 100) {
 
-            fastxp$timer = 0;
+            timer = 0;
 
             mc.player.addEffect(
                     new MobEffectInstance(
