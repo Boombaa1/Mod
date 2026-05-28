@@ -7,12 +7,11 @@
   ],
 
   "client": [
-    "ElytraRollMixin",
-    "FastXPMixin",
-    "FastXPTotemMixin",
     "FireOverlayMixin",
     "NoHurtCamMixin",
-    "ShieldTransformMixin"
+    "ShieldTransformMixin",
+    "ElytraRollMixin",
+    "AntiFogMixin"
   ],
 
   "injectors": {
